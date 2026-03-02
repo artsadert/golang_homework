@@ -1,0 +1,25 @@
+// package main
+
+// func main() {
+// 	if len(os.Args) != 3 {
+// 		fmt.Println("Please provide 2 numbers")
+// 		os.Exit(1)
+// 	}
+//
+// 	bill, err := strconv.ParseFloat(os.Args[1], 64)
+// 	if err != nil {
+// 		fmt.Println("cannot parse bill amount")
+// 		os.Exit(1)
+// 	}
+//
+// 	percent, err := strconv.ParseFloat(os.Args[2], 64)
+// 	if err != nil {
+// 		fmt.Println("cannot parse percent amount")
+// 		os.Exit(1)
+// 	}
+//
+// 	tip := bill * percent / 100
+// 	total := tip + bill
+// 	fmt.Printf("Tip: $%.2f\n", tip)
+// 	fmt.Printf("Total: $%.2f\n", total)
+// }
