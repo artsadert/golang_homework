@@ -1,10 +1,10 @@
 package main
 
 type User struct {
-	Name    string `json:"name"`
-	Version int64  `json:"version"`
+	Id   string `json:"id"`
+	Name string `json:"name"`
 }
 
 func NewUser(name string) *User {
-	return &User{Name: name, Version: 1}
+	return &User{Name: name}
 }

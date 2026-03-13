@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: GolangTaskTable
+    environment:
+      POSTGRES_USER: ${DB_USERNAME?error}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE?error}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres:/var/lib/postgresql
+    networks:
+      - postgres
+    restart: always
+
+  pgadmin:
+    container_name: golangTaskPgadmin
+    image: dpage/pgadmin4:9.0
+
+    depends_on:
+      - postgres
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+
+    ports:
+      - ${PGADMIN_PORT:-5050}:80
+
+    networks:
+      - postgres
+
+    restart: unless-stopped
+
+networks:
+  postgres:
+    driver: bridge
+
+volumes:
+  postgres:
+  ncanode_cache:

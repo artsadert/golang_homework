@@ -1,33 +1,51 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
-	"sync"
+	"time"
 )
 
 type UserHandler struct {
-	Users map[int64]*User
-	id    int64
-	mutex sync.RWMutex
+	UsersRepo *UserRepo
 }
 
-func NewUserHandler() *UserHandler {
-	return &UserHandler{Users: map[int64]*User{}, id: 0, mutex: sync.RWMutex{}}
+func NewUserHandler(userRepo *UserRepo) *UserHandler {
+	return &UserHandler{UsersRepo: userRepo}
 }
 
 func (userHandler *UserHandler) getUsers(w http.ResponseWriter, r *http.Request) {
-	userHandler.mutex.RLock()
-	defer userHandler.mutex.RUnlock()
+	q := r.URL.Query()
+	page_size := q.Get("page_size")
 
-	json.NewEncoder(w).Encode(userHandler.Users)
+	if page_size == "" {
+		page_size = "10"
+	}
+
+	page, err := strconv.Atoi(page_size)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
+	cursor := q.Get("cursor")
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
+	users, err := userHandler.UsersRepo.GetUsers(ctx, page, cursor)
+	if err != nil {
+		log.Printf("Error getting users: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(users)
 }
 
 func (userHandler *UserHandler) getUserById(w http.ResponseWriter, r *http.Request) {
-	userHandler.mutex.RLock()
-	defer userHandler.mutex.RUnlock()
-
 	query_id := r.PathValue("id")
 	if query_id == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -38,18 +56,20 @@ func (userHandler *UserHandler) getUserById(w http.ResponseWriter, r *http.Reque
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	}
 
-	if _, ok := userHandler.Users[id]; !ok {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
+	user, err := userHandler.UsersRepo.GetUserById(ctx, id)
+	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
+		log.Println(err)
 		return
 	}
 
-	json.NewEncoder(w).Encode(userHandler.Users[id])
+	json.NewEncoder(w).Encode(user)
 }
 
 func (userHandler *UserHandler) createUser(w http.ResponseWriter, r *http.Request) {
-	userHandler.mutex.Lock()
-	defer userHandler.mutex.Unlock()
-
 	defer r.Body.Close()
 	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 
@@ -62,16 +82,19 @@ func (userHandler *UserHandler) createUser(w http.ResponseWriter, r *http.Reques
 
 	}
 
-	userHandler.Users[userHandler.id] = NewUser(userCommand.Name)
-	userHandler.id++
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
 
-	json.NewEncoder(w).Encode(userHandler.Users[userHandler.id-1])
+	user, err := userHandler.UsersRepo.CreateUser(ctx, NewUser(userCommand.Name))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(user)
 }
 
 func (userHandler *UserHandler) updateUser(w http.ResponseWriter, r *http.Request) {
-	userHandler.mutex.RLock()
-	defer userHandler.mutex.RUnlock()
-
 	query_id := r.PathValue("id")
 	if query_id == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -85,11 +108,6 @@ func (userHandler *UserHandler) updateUser(w http.ResponseWriter, r *http.Reques
 	defer r.Body.Close()
 	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 
-	if _, ok := userHandler.Users[id]; !ok {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
 	userCommand := UpdateUserComamnd{}
 
 	err = json.NewDecoder(r.Body).Decode(&userCommand)
@@ -98,26 +116,17 @@ func (userHandler *UserHandler) updateUser(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if userCommand.Version == 0 {
-		w.WriteHeader(http.StatusPreconditionRequired)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
+	err = userHandler.UsersRepo.UpdateUser(ctx, id, NewUser(userCommand.Name))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	if userCommand.Version != userHandler.Users[id].Version {
-		w.WriteHeader(http.StatusPreconditionFailed)
-		return
-	}
-
-	userHandler.Users[id].Name = userCommand.Name
-	userHandler.Users[id].Version++
-
-	json.NewEncoder(w).Encode(userHandler.Users[id])
 }
 
 func (userHandler *UserHandler) deleteUser(w http.ResponseWriter, r *http.Request) {
-	userHandler.mutex.Lock()
-	defer userHandler.mutex.Unlock()
-
 	query_id := r.PathValue("id")
 	if query_id == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -128,11 +137,6 @@ func (userHandler *UserHandler) deleteUser(w http.ResponseWriter, r *http.Reques
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	}
 
-	if _, ok := userHandler.Users[id]; !ok {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
 	userCommand := DeleteUserCommand{}
 
 	err = json.NewDecoder(r.Body).Decode(&userCommand)
@@ -141,15 +145,12 @@ func (userHandler *UserHandler) deleteUser(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if userCommand.Version == 0 {
-		w.WriteHeader(http.StatusPreconditionRequired)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
+	err = userHandler.UsersRepo.DeleteUser(ctx, id)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	if userCommand.Version != userHandler.Users[id].Version {
-		w.WriteHeader(http.StatusPreconditionFailed)
-		return
-	}
-
-	delete(userHandler.Users, id)
 }

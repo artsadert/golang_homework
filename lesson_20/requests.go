@@ -5,10 +5,7 @@ type CreateUserCommand struct {
 }
 
 type UpdateUserComamnd struct {
-	Name    string `json:"name"`
-	Version int64  `json:"version,omitempty"`
+	Name string `json:"name"`
 }
 
-type DeleteUserCommand struct {
-	Version int64 `json:"version,omitempty"`
-}
+type DeleteUserCommand struct{}
