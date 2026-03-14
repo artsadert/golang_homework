@@ -7,15 +7,54 @@ import (
 
 	"github.com/artsadert/lesson_23/internal/application/command"
 	"github.com/artsadert/lesson_23/internal/application/interfaces"
+	"github.com/go-chi/jwtauth/v5"
 	"github.com/google/uuid"
 )
 
 type UserHandler struct {
-	service interfaces.UserService
+	service   interfaces.UserService
+	tokenAuth *jwtauth.JWTAuth
 }
 
-func NewUserHandler(service interfaces.UserService) *UserHandler {
-	return &UserHandler{service: service}
+func NewUserHandler(service interfaces.UserService, tokenAuth *jwtauth.JWTAuth) *UserHandler {
+	return &UserHandler{
+		service:   service,
+		tokenAuth: tokenAuth,
+	}
+}
+
+func (userHandler *UserHandler) login(w http.ResponseWriter, r *http.Request) {
+	LoginUserCommand := &command.LoginUserCommand{}
+
+	err := json.NewDecoder(r.Body).Decode(LoginUserCommand)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err = LoginUserCommand.Validate()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Validate credentials against your user service
+	user, err := userHandler.service.Authenticate(LoginUserCommand)
+	if err != nil || user == nil {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	_, tokenString, err := userHandler.tokenAuth.Encode(map[string]interface{}{"user_id": user.Result.Id})
+	if err != nil {
+		log.Fatalf("Failed to generate token: %v", err)
+		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"token": tokenString,
+	})
 }
 
 func (userHandler *UserHandler) getUsers(w http.ResponseWriter, r *http.Request) {
@@ -86,6 +125,7 @@ func (userHandler *UserHandler) createUser(w http.ResponseWriter, r *http.Reques
 	// user, err := userHandler.UsersRepo.CreateUser(ctx, NewUser(userCommand.Name))
 	userCommandResult, err := userHandler.service.CreateUser(userCommand)
 	if err != nil {
+		log.Fatalf("Failed to create user: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -100,7 +140,7 @@ func (userHandler *UserHandler) updateUser(w http.ResponseWriter, r *http.Reques
 
 	userCommand := &command.UpdateUserCommand{}
 
-	err := json.NewDecoder(r.Body).Decode(&userCommand)
+	err := json.NewDecoder(r.Body).Decode(userCommand)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -142,7 +182,7 @@ func (userHandler *UserHandler) deleteUser(w http.ResponseWriter, r *http.Reques
 
 	userCommand := &command.DeleteUserCommand{}
 
-	err := json.NewDecoder(r.Body).Decode(&userCommand)
+	err := json.NewDecoder(r.Body).Decode(userCommand)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

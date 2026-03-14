@@ -6,7 +6,8 @@ import (
 )
 
 func NewUserResultFromEntity(entity *entities.User) *common.UserResult {
-	return &common.UserResult{Id: entity.Id,
+	return &common.UserResult{
+		Id:        entity.Id,
 		Name:      entity.Name,
 		Email:     entity.Email,
 		Create_at: entity.Create_at,

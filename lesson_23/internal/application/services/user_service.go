@@ -10,6 +10,7 @@ import (
 	"github.com/artsadert/lesson_23/internal/domain/entities"
 	"github.com/artsadert/lesson_23/internal/domain/repository"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService struct {
@@ -18,6 +19,14 @@ type UserService struct {
 
 func NewUserService(repo repository.UserRepo) interfaces.UserService {
 	return &UserService{userRepo: repo}
+}
+
+func (u UserService) Authenticate(credentials *command.LoginUserCommand) (*query.UserQueryResult, error) {
+	entity, err := u.userRepo.Authenticate(credentials)
+	if err != nil {
+		return nil, err
+	}
+	return &query.UserQueryResult{Result: mapper.NewUserResultFromEntity(entity)}, nil
 }
 
 func (u UserService) GetUser(id uuid.UUID) (*query.UserQueryResult, error) {
@@ -43,7 +52,18 @@ func (u UserService) CreateUser(user *command.CreateUserCommand) (*command.Creat
 		return nil, err
 	}
 
-	log.Println("hello")
+	HashPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	err = entity.UpdatePassword(string(HashPassword))
+	if err != nil {
+		return nil, err
+	}
+
+	log.Println(entity.Password)
+
 	err = u.userRepo.CreateUser(entity)
 	if err != nil {
 		return nil, err

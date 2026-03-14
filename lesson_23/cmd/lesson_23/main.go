@@ -8,6 +8,7 @@ import (
 	"github.com/artsadert/lesson_23/internal/infrastructure/db/dotenv"
 	"github.com/artsadert/lesson_23/internal/infrastructure/db/postgres"
 	"github.com/artsadert/lesson_23/internal/infrastructure/db/postgres/user"
+	"github.com/artsadert/lesson_23/internal/infrastructure/db/token"
 	user_interface "github.com/artsadert/lesson_23/internal/interface/api/rest/v1/user"
 )
 
@@ -15,12 +16,13 @@ func main() {
 	dotenv.LoadDotenv()
 
 	conn := postgres.NewConnection()
+	token := token.GetToken()
 
 	user_repo := user.NewPostgresUserRepository(conn)
 
 	user_service := services.NewUserService(user_repo)
 
-	user_mux := user_interface.NewUserMux(user_service)
+	user_mux := user_interface.NewUserMux(user_service, token)
 
 	fmt.Println("starting on http://localhost:8080")
 

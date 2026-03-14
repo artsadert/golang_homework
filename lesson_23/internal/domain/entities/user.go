@@ -10,6 +10,7 @@ import (
 type User struct {
 	Id        uuid.UUID
 	Name      string
+	Password  string
 	Email     string
 	Create_at time.Time
 	Update_at time.Time
@@ -25,7 +26,6 @@ func NewUser(name, email string) (*User, error) {
 	}
 
 	err := user.validate()
-
 	if err != nil {
 		return nil, err
 	}
@@ -51,6 +51,13 @@ func (u *User) UpdateName(name string) error {
 
 func (u *User) UpdateEmail(email string) error {
 	u.Email = email
+	u.Update_at = time.Now()
+
+	return u.validate()
+}
+
+func (u *User) UpdatePassword(password string) error {
+	u.Password = password
 	u.Update_at = time.Now()
 
 	return u.validate()

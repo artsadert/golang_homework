@@ -7,6 +7,7 @@ func toDBUser(user *entities.User) *DBUser {
 		Uuid:      user.Id,
 		Name:      user.Name,
 		Email:     user.Email,
+		Password:  user.Password,
 		Create_at: user.Create_at,
 		Update_at: user.Update_at,
 	}

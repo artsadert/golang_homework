@@ -8,8 +8,9 @@ import (
 
 type CreateUserCommand struct {
 	// we dont need id cause it will create it later
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 func (c *CreateUserCommand) Validate() error {
@@ -17,6 +18,8 @@ func (c *CreateUserCommand) Validate() error {
 		return fmt.Errorf("name in User must not be empty")
 	} else if c.Email == "" {
 		return fmt.Errorf("email in User must not be empty")
+	} else if c.Password == "" {
+		return fmt.Errorf("password in User must not be empty")
 	}
 	return nil
 }

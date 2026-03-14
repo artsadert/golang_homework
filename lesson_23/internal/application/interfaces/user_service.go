@@ -7,6 +7,7 @@ import (
 )
 
 type UserService interface {
+	Authenticate(*command.LoginUserCommand) (*query.UserQueryResult, error)
 	CreateUser(*command.CreateUserCommand) (*command.CreateUserCommandResult, error)
 	DeleteUser(*command.DeleteUserCommand) (*command.DeleteUserCommandResult, error)
 	UpdateUser(*command.UpdateUserCommand) (*command.UpdateUserCommandResult, error)

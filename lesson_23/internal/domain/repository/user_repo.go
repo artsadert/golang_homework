@@ -1,11 +1,13 @@
 package repository
 
 import (
+	"github.com/artsadert/lesson_23/internal/application/command"
 	"github.com/artsadert/lesson_23/internal/domain/entities"
 	"github.com/google/uuid"
 )
 
 type UserRepo interface {
+	Authenticate(*command.LoginUserCommand) (*entities.User, error)
 	GetUser(uuid.UUID) (*entities.User, error)
 	GetUsers() ([]*entities.User, error)
 	CreateUser(*entities.User) error
