@@ -29,7 +29,7 @@ func main() {
 	}
 
 	user_repo := user.NewPostgresUserRepository(conn)
-	movie_repo := movie.NewPostgresMovieRepository(conn)
+	movie_repo := movie.NewPostgresMovieRepository(conn, 2)
 
 	user_service := services.NewUserService(user_repo)
 	movie_service := services.NewMovieService(movie_repo)
@@ -54,5 +54,11 @@ func main() {
 		}
 	}()
 
+	go func() {
+		movie_repo.Start()
+	}()
+
 	<-stop
+	movie_repo.Shutdown()
+	fmt.Println("shutting down")
 }

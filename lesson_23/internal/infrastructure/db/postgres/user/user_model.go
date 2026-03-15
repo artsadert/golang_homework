@@ -4,11 +4,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 type DBUser struct {
-	gorm.Model
 	Uuid      uuid.UUID `db:"uuid" gorm:"primary_key"`
 	Name      string    `db:"name"`
 	Password  string    `db:"password"`

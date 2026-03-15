@@ -1,6 +1,11 @@
 package movie
 
-import "github.com/artsadert/lesson_23/internal/domain/entities"
+import (
+	"strings"
+
+	"github.com/artsadert/lesson_23/internal/domain/entities"
+	"github.com/google/uuid"
+)
 
 func toDBMovie(movie *entities.Movie) *DBMovie {
 	return &DBMovie{
@@ -25,5 +30,13 @@ func fromDBMovie(movie *DBMovie) *entities.Movie {
 		Poster_url:  movie.Poster_url,
 		Update_at:   movie.Update_at,
 		Create_at:   movie.Create_at,
+	}
+}
+
+func toDBDescriptionAggregate(movie *entities.Movie) *DBDescriptionAggregate {
+	return &DBDescriptionAggregate{
+		Uuid:       uuid.New(),
+		MovieId:    movie.Id,
+		WordNumber: len(strings.Fields(movie.Description)),
 	}
 }

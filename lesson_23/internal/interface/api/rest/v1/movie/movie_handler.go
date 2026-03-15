@@ -76,8 +76,12 @@ func (h *MovieHandler) createMovie(w http.ResponseWriter, r *http.Request) {
 
 	movie, err := h.service.CreateMovie(&cmd)
 	if err != nil {
+		if err.Error() == "cannot upload task, queue is full" {
+			http.Error(w, err.Error(), http.StatusTooManyRequests)
+			return
+		}
 		log.Printf("Error creating movie: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		http.Error(w, "Internal server error", http.StatusServiceUnavailable)
 		return
 	}
 
