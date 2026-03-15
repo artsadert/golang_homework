@@ -8,7 +8,7 @@ import (
 )
 
 type UpdateUserCommand struct {
-	Id    uuid.UUID `db:"uuid" gorm:"primary_key"`
+	Id    uuid.UUID `db:"uuid" gorm:"primary_key" json:"omitempty"`
 	Name  string
 	Email string
 }

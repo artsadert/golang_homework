@@ -8,7 +8,7 @@ import (
 )
 
 type DeleteUserCommand struct {
-	Id uuid.UUID
+	Id uuid.UUID `db:"uuid" gorm:"primary_key" json:"omitempty"`
 }
 
 func (u *DeleteUserCommand) Validate() error {

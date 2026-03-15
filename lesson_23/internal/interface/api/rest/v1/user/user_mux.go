@@ -2,16 +2,17 @@ package user
 
 import (
 	"github.com/artsadert/lesson_23/internal/application/interfaces"
-	"github.com/go-chi/chi/middleware"
+	"github.com/artsadert/lesson_23/internal/domain/entities"
+	"github.com/artsadert/lesson_23/internal/interface/api/rest/v1/user/middleware"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/jwtauth/v5"
+	system_middleware "github.com/go-chi/chi/v5/middleware"
 )
 
-func NewUserMux(service interfaces.UserService, tokenAuth *jwtauth.JWTAuth) *chi.Mux {
-	userHandler := NewUserHandler(service, tokenAuth)
+func NewUserMux(service interfaces.UserService, config *entities.Config) *chi.Mux {
+	userHandler := NewUserHandler(service, config)
 	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	r.Use(system_middleware.Logger)
+	r.Use(system_middleware.Recoverer)
 
 	r.Group(func(r chi.Router) {
 		r.Post("/login", userHandler.login)
@@ -19,18 +20,21 @@ func NewUserMux(service interfaces.UserService, tokenAuth *jwtauth.JWTAuth) *chi
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(jwtauth.Verifier(tokenAuth))
-		r.Use(jwtauth.Authenticator(tokenAuth))
+		r.Use(middleware.DualVerifier(config))
 
-		r.Post("/users", userHandler.createUser)
+		r.Get("/user", userHandler.getUser)
 		r.Put("/users", userHandler.updateUser)
 		r.Patch("/users", userHandler.updateUser)
 		r.Delete("/users", userHandler.deleteUser)
 	})
 
 	r.Group(func(r chi.Router) {
+		r.Use(middleware.RefreshVerifier(config))
+		// r.Post("/refhresh", userHandler.regresh)
+	})
+
+	r.Group(func(r chi.Router) {
 		r.Get("/users", userHandler.getUsers)
-		r.Get("/user", userHandler.getUserById)
 	})
 
 	return r

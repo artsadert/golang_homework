@@ -1,8 +1,6 @@
 package services
 
 import (
-	"log"
-
 	"github.com/artsadert/lesson_23/internal/application/command"
 	"github.com/artsadert/lesson_23/internal/application/interfaces"
 	"github.com/artsadert/lesson_23/internal/application/mapper"
@@ -61,8 +59,6 @@ func (u UserService) CreateUser(user *command.CreateUserCommand) (*command.Creat
 	if err != nil {
 		return nil, err
 	}
-
-	log.Println(entity.Password)
 
 	err = u.userRepo.CreateUser(entity)
 	if err != nil {

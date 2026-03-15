@@ -7,19 +7,20 @@ import (
 
 	"github.com/artsadert/lesson_23/internal/application/command"
 	"github.com/artsadert/lesson_23/internal/application/interfaces"
+	"github.com/artsadert/lesson_23/internal/domain/entities"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/google/uuid"
 )
 
 type UserHandler struct {
-	service   interfaces.UserService
-	tokenAuth *jwtauth.JWTAuth
+	service interfaces.UserService
+	config  *entities.Config
 }
 
-func NewUserHandler(service interfaces.UserService, tokenAuth *jwtauth.JWTAuth) *UserHandler {
+func NewUserHandler(service interfaces.UserService, config *entities.Config) *UserHandler {
 	return &UserHandler{
-		service:   service,
-		tokenAuth: tokenAuth,
+		service: service,
+		config:  config,
 	}
 }
 
@@ -45,16 +46,13 @@ func (userHandler *UserHandler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, tokenString, err := userHandler.tokenAuth.Encode(map[string]interface{}{"user_id": user.Result.Id})
+	tokens, err := createTokens(user.Result.Id, userHandler.config)
 	if err != nil {
-		log.Fatalf("Failed to generate token: %v", err)
-		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
-		return
+		log.Printf("Error generating tokens: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	json.NewEncoder(w).Encode(map[string]string{
-		"token": tokenString,
-	})
+	json.NewEncoder(w).Encode(tokens)
 }
 
 func (userHandler *UserHandler) getUsers(w http.ResponseWriter, r *http.Request) {
@@ -79,22 +77,19 @@ func (userHandler *UserHandler) getUsers(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(users)
 }
 
-func (userHandler *UserHandler) getUserById(w http.ResponseWriter, r *http.Request) {
-	// change later to use in jwt token
-	query_uuid := r.PathValue("id")
-	if query_uuid == "" {
-		w.WriteHeader(http.StatusBadRequest)
-	}
-
-	err := uuid.Validate(query_uuid)
+func (userHandler *UserHandler) getUser(w http.ResponseWriter, r *http.Request) {
+	_, claims, err := jwtauth.FromContext(r.Context())
 	if err != nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
 	}
 
-	uuid := uuid.MustParse(query_uuid)
+	if claims["user_uuid"] == nil {
+		http.Error(w, "user_uuid must by in token", http.StatusUnauthorized)
+	}
+	query_uuid := uuid.MustParse(claims["user_uuid"].(string))
 
-	// user, err := userHandler.UsersRepo.GetUserById(ctx, id)
-	user, err := userHandler.service.GetUser(uuid)
+	user, err := userHandler.service.GetUser(query_uuid)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		log.Println(err)
@@ -134,17 +129,27 @@ func (userHandler *UserHandler) createUser(w http.ResponseWriter, r *http.Reques
 }
 
 func (userHandler *UserHandler) updateUser(w http.ResponseWriter, r *http.Request) {
-	// change to use jwt claims
 	defer r.Body.Close()
 	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 
 	userCommand := &command.UpdateUserCommand{}
 
-	err := json.NewDecoder(r.Body).Decode(userCommand)
+	err := json.NewDecoder(r.Body).Decode(&userCommand)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	_, claims, err := jwtauth.FromContext(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	if claims["user_uuid"] == nil {
+		http.Error(w, "user_uuid must by in token", http.StatusUnauthorized)
+	}
+	userCommand.Id = uuid.MustParse(claims["user_uuid"].(string))
 
 	err = userCommand.Validate()
 	if err != nil {
@@ -167,26 +172,24 @@ func (userHandler *UserHandler) updateUser(w http.ResponseWriter, r *http.Reques
 }
 
 func (userHandler *UserHandler) deleteUser(w http.ResponseWriter, r *http.Request) {
-	// cange later to get uuid from claims jwt tokens
-	// query_uuid := r.PathValue("id")
-	// if query_uuid == "" {
-	// 	w.WriteHeader(http.StatusBadRequest)
-	// }
-	//
-	// err := uuid.Validate(query_uuid)
-	// if err != nil {
-	// 	w.WriteHeader(http.StatusUnprocessableEntity)
-	// }
-	//
-	// uuid := uuid.MustParse(query_uuid)
-
 	userCommand := &command.DeleteUserCommand{}
 
-	err := json.NewDecoder(r.Body).Decode(userCommand)
+	err := json.NewDecoder(r.Body).Decode(&userCommand)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	_, claims, err := jwtauth.FromContext(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	if claims["user_uuid"] == nil {
+		http.Error(w, "user_uuid must by in token", http.StatusUnauthorized)
+	}
+	userCommand.Id = uuid.MustParse(claims["user_uuid"].(string))
 
 	err = userCommand.Validate()
 	if err != nil {
