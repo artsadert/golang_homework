@@ -55,6 +55,42 @@ func (userHandler *UserHandler) login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(tokens)
 }
 
+func (userHandler *UserHandler) refresh(w http.ResponseWriter, r *http.Request) {
+	RefreshUserCommand := &command.RefreshUserCommand{}
+
+	err := json.NewDecoder(r.Body).Decode(RefreshUserCommand)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err = RefreshUserCommand.Validate()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	query_uuid, err := getUUIDFromContextToken(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	user, err := userHandler.service.GetUser(query_uuid)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	tokens, err := refreshToken(user.Result.Id, userHandler.config)
+	if err != nil {
+		log.Printf("Error generating tokens: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	json.NewEncoder(w).Encode(tokens)
+}
+
 func (userHandler *UserHandler) getUsers(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	page_size := q.Get("page_size")
@@ -78,16 +114,11 @@ func (userHandler *UserHandler) getUsers(w http.ResponseWriter, r *http.Request)
 }
 
 func (userHandler *UserHandler) getUser(w http.ResponseWriter, r *http.Request) {
-	_, claims, err := jwtauth.FromContext(r.Context())
+	query_uuid, err := getUUIDFromContextToken(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
-
-	if claims["user_uuid"] == nil {
-		http.Error(w, "user_uuid must by in token", http.StatusUnauthorized)
-	}
-	query_uuid := uuid.MustParse(claims["user_uuid"].(string))
 
 	user, err := userHandler.service.GetUser(query_uuid)
 	if err != nil {
@@ -125,7 +156,15 @@ func (userHandler *UserHandler) createUser(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	json.NewEncoder(w).Encode(userCommandResult)
+	tokens, err := createTokens(userCommandResult.Result.Id, userHandler.config)
+	if err != nil {
+		log.Printf("Error generating tokens: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	w.WriteHeader(http.StatusCreated)
+
+	json.NewEncoder(w).Encode([]interface{}{userCommandResult, tokens})
 }
 
 func (userHandler *UserHandler) updateUser(w http.ResponseWriter, r *http.Request) {

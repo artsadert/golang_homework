@@ -30,7 +30,7 @@ func NewUserMux(service interfaces.UserService, config *entities.Config) *chi.Mu
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RefreshVerifier(config))
-		// r.Post("/refhresh", userHandler.regresh)
+		r.Post("/refresh", userHandler.refresh)
 	})
 
 	r.Group(func(r chi.Router) {
