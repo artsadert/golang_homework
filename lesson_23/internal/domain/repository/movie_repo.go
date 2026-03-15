@@ -1,12 +1,14 @@
 package repository
 
 import (
+	"context"
+
 	"github.com/artsadert/lesson_23/internal/domain/entities"
 	"github.com/google/uuid"
 )
 
 type MovieRepo interface {
-	Shutdown() error
+	Shutdown(context.Context) error
 	Start() error
 	GetMovie(uuid.UUID) (*entities.Movie, error)
 	GetMovies() ([]*entities.Movie, error)

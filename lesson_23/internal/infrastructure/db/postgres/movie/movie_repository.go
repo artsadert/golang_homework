@@ -1,9 +1,11 @@
 package movie
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/artsadert/lesson_23/internal/domain/entities"
 	"github.com/artsadert/lesson_23/internal/domain/repository"
@@ -17,6 +19,7 @@ type PostgresMovieRepository struct {
 	taskQueue    chan uuid.UUID
 	wg           *sync.WaitGroup
 	shutdownFlag bool
+	cancel       context.CancelFunc
 }
 
 func NewPostgresMovieRepository(db *gorm.DB, worker_count int) repository.MovieRepo {
@@ -42,7 +45,7 @@ func (p *PostgresMovieRepository) Start() error {
 					continue
 				}
 				// Чтоб проверить что рабоатает 503 ошибка когда воркеры устали от работы
-				// time.Sleep(2 * time.Second)
+				time.Sleep(20 * time.Second)
 
 				db_description_aggregate := toDBDescriptionAggregate(movie)
 
@@ -72,12 +75,29 @@ func (p *PostgresMovieRepository) upload_task(id uuid.UUID) error {
 	return nil
 }
 
-func (p *PostgresMovieRepository) Shutdown() error {
+func (p *PostgresMovieRepository) Shutdown(ctx context.Context) error {
 	p.shutdownFlag = true
 
+	if p.cancel != nil {
+		p.cancel()
+	}
+
 	close(p.taskQueue)
-	p.wg.Wait()
-	return nil
+
+	done := make(chan struct{})
+	go func() {
+		p.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		log.Println("shutdown completed without errors")
+		return nil
+	case <-ctx.Done():
+		log.Println("shutdown completed by terminating goroutines")
+		return ctx.Err()
+	}
 }
 
 func (p *PostgresMovieRepository) GetMovie(id uuid.UUID) (*entities.Movie, error) {

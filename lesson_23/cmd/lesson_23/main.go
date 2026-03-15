@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/artsadert/lesson_23/internal/application/services"
 	"github.com/artsadert/lesson_23/internal/infrastructure/db/dotenv"
@@ -59,6 +61,7 @@ func main() {
 	}()
 
 	<-stop
-	movie_repo.Shutdown()
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	movie_repo.Shutdown(ctx)
 	fmt.Println("shutting down")
 }
