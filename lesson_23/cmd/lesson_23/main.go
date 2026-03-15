@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/artsadert/lesson_23/internal/application/services"
 	"github.com/artsadert/lesson_23/internal/infrastructure/db/dotenv"
@@ -39,10 +42,17 @@ func main() {
 	root_router.Mount("/users", user_mux)
 	root_router.Mount("/movies", movie_mux)
 
-	fmt.Println("starting on http://localhost:8080")
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
-	err = http.ListenAndServe(":8080", root_router)
-	if err != nil {
-		panic(err)
-	}
+	go func() {
+		fmt.Println("starting on http://localhost:8080")
+
+		err = http.ListenAndServe(":8080", root_router)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	<-stop
 }
