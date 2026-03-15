@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -28,8 +27,6 @@ func DualVerifier(config *entities.Config) func(next http.Handler) http.Handler 
 			if err == nil {
 				// Token is valid with new secret
 				exp, _ := token.Expiration()
-				iat, _ := token.IssuedAt()
-				log.Println(exp, iat)
 				if exp.Before(time.Now()) {
 					http.Error(w, "access token expired", http.StatusUnauthorized)
 					return

@@ -8,8 +8,11 @@ import (
 	"github.com/artsadert/lesson_23/internal/infrastructure/db/dotenv"
 	"github.com/artsadert/lesson_23/internal/infrastructure/db/postgres"
 	"github.com/artsadert/lesson_23/internal/infrastructure/db/postgres/config"
+	"github.com/artsadert/lesson_23/internal/infrastructure/db/postgres/movie"
 	"github.com/artsadert/lesson_23/internal/infrastructure/db/postgres/user"
+	movie_interface "github.com/artsadert/lesson_23/internal/interface/api/rest/v1/movie"
 	user_interface "github.com/artsadert/lesson_23/internal/interface/api/rest/v1/user"
+	"github.com/go-chi/chi"
 )
 
 func main() {
@@ -23,14 +26,22 @@ func main() {
 	}
 
 	user_repo := user.NewPostgresUserRepository(conn)
+	movie_repo := movie.NewPostgresMovieRepository(conn)
 
 	user_service := services.NewUserService(user_repo)
+	movie_service := services.NewMovieService(movie_repo)
 
 	user_mux := user_interface.NewUserMux(user_service, config)
+	movie_mux := movie_interface.NewMovieMux(movie_service, config)
+
+	root_router := chi.NewRouter()
+
+	root_router.Mount("/users", user_mux)
+	root_router.Mount("/movies", movie_mux)
 
 	fmt.Println("starting on http://localhost:8080")
 
-	err = http.ListenAndServe(":8080", user_mux)
+	err = http.ListenAndServe(":8080", root_router)
 	if err != nil {
 		panic(err)
 	}

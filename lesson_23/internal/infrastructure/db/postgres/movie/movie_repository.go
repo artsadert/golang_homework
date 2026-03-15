@@ -12,55 +12,52 @@ type PostgresMovieRepository struct {
 }
 
 func NewPostgresMovieRepository(db *gorm.DB) repository.MovieRepo {
+	db.Migrator().AutoMigrate(&DBMovie{})
 	return &PostgresMovieRepository{db: db}
 }
 
 func (p *PostgresMovieRepository) GetMovie(id uuid.UUID) (*entities.Movie, error) {
-	var db_movie DBMovie
+	var dbMovie DBMovie
 
-	err := p.db.Where("uuid = ?", id).First(&db_movie).Error
+	err := p.db.First(&dbMovie, "uuid = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
-	return fromDBMovie(&db_movie), nil
+	return fromDBMovie(&dbMovie), nil
 }
 
 func (p *PostgresMovieRepository) GetMovies() ([]*entities.Movie, error) {
-	var db_movies []*DBMovie
+	var dbMovies []*DBMovie
 
-	err := p.db.Take(&db_movies).Error
+	err := p.db.Find(&dbMovies).Error
 	if err != nil {
 		return nil, err
 	}
 
 	var movies []*entities.Movie
-	for _, db_movie := range db_movies {
-		movies = append(movies, fromDBMovie(db_movie))
+	for _, dbMovie := range dbMovies {
+		movies = append(movies, fromDBMovie(dbMovie))
 	}
-
 	return movies, nil
 }
 
 func (p *PostgresMovieRepository) CreateMovie(movie *entities.Movie) error {
-	db_movie := toDBMovie(movie)
+	dbMovie := toDBMovie(movie)
 
-	err := p.db.Create(db_movie).Error
-
+	err := p.db.Create(&dbMovie).Error
 	return err
 }
 
-func (m *PostgresMovieRepository) UpdateMovie(movie *entities.Movie) error {
-	db_movie := toDBMovie(movie)
+func (p *PostgresMovieRepository) UpdateMovie(movie *entities.Movie) error {
+	dbMovie := toDBMovie(movie)
 
-	err := m.db.Save(db_movie).Error
-
+	err := p.db.Updates(dbMovie).Error
 	return err
 }
 
-func (m *PostgresMovieRepository) DeleteMovie(id uuid.UUID) error {
-	var db_movie DBMovie
+func (p *PostgresMovieRepository) DeleteMovie(id uuid.UUID) error {
+	var dbMovie DBMovie
 
-	err := m.db.Where("uuid = ?", id).Delete(&db_movie).Error
-
+	err := p.db.Where("uuid = ?", id).Delete(&dbMovie).Error
 	return err
 }

@@ -14,7 +14,7 @@ import (
 func createTokens(uuid uuid.UUID, config *entities.Config) (*response.LoginResponse, error) {
 	claims_access := map[string]interface{}{
 		"type":      "access",
-		"exp":       time.Now().Add(15 * time.Minute),
+		"exp":       time.Now().Add(config.JWT_TTL),
 		"iat":       time.Now(),
 		"user_uuid": uuid.String(),
 	}
@@ -22,7 +22,7 @@ func createTokens(uuid uuid.UUID, config *entities.Config) (*response.LoginRespo
 	claims_refresh := map[string]interface{}{
 		"type":      "refresh",
 		"iat":       time.Now(),
-		"exp":       time.Now().Add(24 * time.Hour),
+		"exp":       time.Now().Add(config.JWT_REFRESH_TTL),
 		"user_uuid": uuid.String(),
 	}
 

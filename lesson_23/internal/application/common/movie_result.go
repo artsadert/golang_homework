@@ -10,7 +10,7 @@ type MovieResult struct {
 	Id          uuid.UUID
 	Name        string
 	Year        int
-	Genre       []string
+	Genre       string
 	Description string
 	Poster_url  string
 	Update_at   time.Time

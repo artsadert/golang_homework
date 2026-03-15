@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"time"
 
 	"github.com/artsadert/lesson_23/internal/domain/entities"
 	"github.com/artsadert/lesson_23/internal/domain/repository"
@@ -19,6 +20,8 @@ func (c *ConfigRepo) GetConfig() (*entities.Config, error) {
 		JWTAccessSecret:    c.getAccessToken(),
 		JWTRefreshSecret:   c.getRefreshToken(),
 		JWTOLDAccessSecret: c.getOldAccessToken(),
+		JWT_TTL:            60 * time.Minute,
+		JWT_REFRESH_TTL:    24 * time.Hour,
 	}, nil
 }
 

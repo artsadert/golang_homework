@@ -15,14 +15,14 @@ func NewUserMux(service interfaces.UserService, config *entities.Config) *chi.Mu
 	r.Use(system_middleware.Recoverer)
 
 	r.Group(func(r chi.Router) {
-		r.Post("/login", userHandler.login)
-		r.Post("/register", userHandler.createUser)
+		r.Post("/users/login", userHandler.login)
+		r.Post("/users/register", userHandler.createUser)
 	})
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.DualVerifier(config))
 
-		r.Get("/user", userHandler.getUser)
+		r.Get("/users", userHandler.getUser)
 		r.Put("/users", userHandler.updateUser)
 		r.Patch("/users", userHandler.updateUser)
 		r.Delete("/users", userHandler.deleteUser)
@@ -30,11 +30,7 @@ func NewUserMux(service interfaces.UserService, config *entities.Config) *chi.Mu
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RefreshVerifier(config))
-		r.Post("/refresh", userHandler.refresh)
-	})
-
-	r.Group(func(r chi.Router) {
-		r.Get("/users", userHandler.getUsers)
+		r.Post("/users/refresh", userHandler.refresh)
 	})
 
 	return r

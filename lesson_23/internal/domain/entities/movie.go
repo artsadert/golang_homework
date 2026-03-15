@@ -11,14 +11,14 @@ type Movie struct {
 	Id          uuid.UUID
 	Name        string
 	Year        int
-	Genre       []string
+	Genre       string
 	Description string
 	Poster_url  string
 	Update_at   time.Time
 	Create_at   time.Time
 }
 
-func NewMovie(name, description, poster_url string, year int, genre []string) (*Movie, error) {
+func NewMovie(name, description, poster_url string, year int, genre string) (*Movie, error) {
 	movie := Movie{
 		Id:          uuid.New(),
 		Name:        name,
@@ -30,7 +30,6 @@ func NewMovie(name, description, poster_url string, year int, genre []string) (*
 		Create_at:   time.Now(),
 	}
 	err := movie.validate()
-
 	if err != nil {
 		return nil, err
 	}
@@ -47,11 +46,6 @@ func (m Movie) validate() error {
 		return fmt.Errorf("Genre must not be empty")
 	}
 
-	for _, genre := range m.Genre {
-		if genre == "" {
-			return fmt.Errorf("Genre must not be empty")
-		}
-	}
 	return nil
 }
 
@@ -69,7 +63,7 @@ func (m *Movie) UpdateYear(year int) error {
 	return m.validate()
 }
 
-func (m *Movie) UpdateGenre(genre []string) error {
+func (m *Movie) UpdateGenre(genre string) error {
 	m.Genre = genre
 	m.Update_at = time.Now()
 
