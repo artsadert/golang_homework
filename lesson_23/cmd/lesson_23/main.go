@@ -47,10 +47,14 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: root_router,
+	}
 	go func() {
 		fmt.Println("starting on http://localhost:8080")
 
-		err = http.ListenAndServe(":8080", root_router)
+		err = server.ListenAndServe()
 		if err != nil {
 			panic(err)
 		}
@@ -60,8 +64,13 @@ func main() {
 		movie_repo.Start()
 	}()
 
+	go func() {
+		movie_repo.StartErrors()
+	}()
+
 	<-stop
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	movie_repo.Shutdown(ctx)
+	// server.Shutdown(ctx)
 	fmt.Println("shutting down")
 }

@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/artsadert/lesson_23/internal/domain/entities"
 	"github.com/artsadert/lesson_23/internal/domain/repository"
@@ -19,6 +22,7 @@ type PostgresMovieRepository struct {
 	taskQueue    chan uuid.UUID
 	wg           *sync.WaitGroup
 	shutdownFlag bool
+	group        *errgroup.Group
 	cancel       context.CancelFunc
 }
 
@@ -29,6 +33,7 @@ func NewPostgresMovieRepository(db *gorm.DB, worker_count int) repository.MovieR
 		workerCount:  worker_count,
 		taskQueue:    make(chan uuid.UUID, worker_count),
 		wg:           &sync.WaitGroup{},
+		group:        &errgroup.Group{},
 		shutdownFlag: false,
 	}
 }
@@ -46,6 +51,7 @@ func (p *PostgresMovieRepository) Start() error {
 				}
 				// Чтоб проверить что рабоатает 503 ошибка когда воркеры устали от работы
 				time.Sleep(20 * time.Second)
+				log.Println("working as regular worker")
 
 				db_description_aggregate := toDBDescriptionAggregate(movie)
 
@@ -61,8 +67,43 @@ func (p *PostgresMovieRepository) Start() error {
 	return nil
 }
 
+func (p *PostgresMovieRepository) StartErrors() error {
+	for i := 0; i < p.workerCount; i++ {
+		p.group.Go(func() error {
+			for task_uuid := range p.taskQueue {
+				movie, err := p.GetMovie(task_uuid)
+				if err != nil {
+					log.Printf("Error getting movie worker: %v", err)
+					continue
+				}
+
+				log.Println("working as error worker")
+
+				if (rand.Int() % 2) == 0 {
+					log.Println("error")
+					ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+					p.Shutdown(ctx)
+					return fmt.Errorf("user error")
+				}
+
+				db_description_aggregate := toDBDescriptionAggregate(movie)
+
+				err = p.db.Create(db_description_aggregate).Error
+				if err != nil {
+					log.Printf("Error setting aggregate word cound worker: %v", err)
+					continue
+				}
+			}
+
+			return nil
+		})
+	}
+
+	return nil
+}
+
 func (p *PostgresMovieRepository) upload_task(id uuid.UUID) error {
-	if p.shutdownFlag {
+	if p.shutdownFlag || p.cancel != nil {
 		return fmt.Errorf("cannot upload task, repository is shutting down")
 	}
 

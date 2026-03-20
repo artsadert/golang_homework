@@ -10,6 +10,7 @@ import (
 type MovieRepo interface {
 	Shutdown(context.Context) error
 	Start() error
+	StartErrors() error
 	GetMovie(uuid.UUID) (*entities.Movie, error)
 	GetMovies() ([]*entities.Movie, error)
 	CreateMovie(*entities.Movie) error
