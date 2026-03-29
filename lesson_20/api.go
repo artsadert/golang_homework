@@ -1,21 +1,29 @@
 package main
 
-import "net/http"
+import (
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+)
 
-func CreateUserMux(userHandler *UserHandler) *http.ServeMux {
-	mux := http.NewServeMux()
+func CreateUserMux(userHandler *UserHandler) *chi.Mux {
+	r := chi.NewRouter()
 
-	mux.HandleFunc("/users", userHandler.getUsers)
+	// Add some useful middleware
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
 
-	mux.HandleFunc("/users/{id}", userHandler.getUserById)
+	// Public routes (if any)
+	r.Group(func(r chi.Router) {
+		// Add auth middleware to protect user routes
+		r.Use(AuthorizeUserAccess)
 
-	mux.HandleFunc("POST /users", userHandler.createUser)
+		r.Get("/users", userHandler.getUsers)
+		r.Get("/users/{id}", userHandler.getUserById)
+		r.Post("/users", userHandler.createUser)
+		r.Put("/users/{id}", userHandler.updateUser)
+		r.Patch("/users/{id}", userHandler.updateUser)
+		r.Delete("/users/{id}", userHandler.deleteUser)
+	})
 
-	mux.HandleFunc("PUT /users/{id}", userHandler.updateUser)
-
-	mux.HandleFunc("PATCH /users/{id}", userHandler.updateUser)
-
-	mux.HandleFunc("DELETE /users/{id}", userHandler.deleteUser)
-
-	return mux
+	return r
 }

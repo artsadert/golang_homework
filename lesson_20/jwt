@@ -1,0 +1,103 @@
+package main
+
+import (
+	"fmt"
+	"net/http"
+	"time"
+
+	// Use the v5 module
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/jwtauth/v5"
+)
+
+// Define the signing key (keep this secret in a real application)
+var (
+	tokenSecret = []byte("supersecretkey")
+	tokenAuth   *jwtauth.JWTAuth
+)
+
+func init() {
+	// Initialize the jwtauth instance with your signing method and secret
+	// HS256 is used here as an example.
+	tokenAuth = jwtauth.New("HS256", tokenSecret, nil)
+}
+
+func main() {
+	// Create a new ServeMux instance
+	mux := http.NewServeMux()
+
+	// Public routes (no auth required)
+	mux.HandleFunc("/", publicHandler)
+	mux.HandleFunc("/login", loginHandler)
+
+	// Protected routes using chi.Mux and jwtauth middleware
+	// Note: While chi is a powerful router, we use the standard http.ServeMux here as requested.
+	// The middleware approach is what makes it compatible.
+
+	// We can't apply middleware to specific paths with stock ServeMux easily.
+	// For specific protected routes, it's generally cleaner to use the go-chi router itself,
+	// or wrap individual handlers. The chi router provides a better way to group routes and apply middleware.
+
+	// Using go-chi/chi router for demonstration of protected group (recommended)
+	r := chi.NewRouter()
+	r.Handle("/*", mux) // Mount the standard mux as a fallback
+
+	// Public routes (on the chi router for cleaner middleware application)
+	r.Get("/", publicHandler)
+	r.Post("/login", loginHandler)
+
+	// Protected routes group
+	r.Group(func(r chi.Router) {
+		// Apply jwtauth middleware to the protected group
+		r.Use(jwtauth.Verifier(tokenAuth)) // Verifies the token and puts it in the context
+		r.Use(jwtauth.Authenticator)       // Responds with 401 if token is invalid or missing
+		r.Get("/profile", profileHandler)
+		r.Get("/api/data", protectedAPIHandler)
+	})
+
+	fmt.Println("Server starting on :8080")
+	http.ListenAndServe(":8080", r) // Use the chi router
+}
+
+// Handler to generate a JWT token upon successful login
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	// In a real scenario, you would verify username and password here
+	// ... (username, password verification logic) ...
+
+	_, tokenString, _ := tokenAuth.Encode(jwtauth.Claims{"user_id": 123, "exp": jwtauth.ExpiresIn(time.Hour * 24)})
+
+	// Set the token in an HttpOnly cookie or return it in the response body
+	http.SetCookie(w, &http.Cookie{
+		Name:     "jwt",
+		Value:    tokenString,
+		HttpOnly: true,
+		Path:     "/",
+	})
+
+	w.Write([]byte(fmt.Sprintf("Logged in successfully. Token: %s", tokenString)))
+}
+
+// Handler for public routes
+func publicHandler(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Welcome to the public homepage!"))
+}
+
+// Handler for a protected API endpoint
+func protectedAPIHandler(w http.ResponseWriter, r *http.Request) {
+	_, claims, err := jwtauth.FromContext(r.Context())
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
+	userID := claims["user_id"].(float64) // Claims are typically float64 when extracted from JSON
+	w.Write([]byte(fmt.Sprintf("Hello, User %v! Access granted to protected API.", userID)))
+}
+
+// Handler for a protected profile page
+func profileHandler(w http.ResponseWriter, r *http.Request) {
+	_, claims, _ := jwtauth.FromContext(r.Context())
+	userID := claims["user_id"].(float64)
+	w.Write([]byte(fmt.Sprintf("Welcome to your profile page, User %v!", userID)))
+}
