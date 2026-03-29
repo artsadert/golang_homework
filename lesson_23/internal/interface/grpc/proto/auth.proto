@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "github.com/artsadert/lesson_23/internal/interface/api/grpc/proto";
+
+service AuthService {
+  // Login authenticates a user and returns access/refresh tokens.
+  rpc Login(LoginRequest) returns (LoginResponse);
+
+  // Refresh generates a new access token using a valid refresh token.
+  rpc Refresh(RefreshRequest) returns (LoginResponse);
+
+  // Validate checks the validity of an access token (optional).
+  rpc Validate(ValidateRequest) returns (ValidateResponse);
+
+  // ListNodes returns a list of nodes with delay
+  rpc ListNodesStream(ListNodesRequest) returns (stream Node);
+}
+
+message ListNodesRequest {}
+
+message Node {
+  string id = 1;
+  string name = 2;
+  string status = 3;
+}
+
+message LoginRequest {
+  string name = 1;
+  string password = 2;
+}
+
+message RefreshRequest { string refresh_token = 1; }
+
+message ValidateRequest { string access_token = 1; }
+
+message LoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  string token_type = 3; // e.g., "Bearer"
+  int64 expires_in = 4;  // access token lifetime in seconds
+}
+
+message ValidateResponse {
+  bool valid = 1;
+  string user_uuid = 2;
+  string message = 3;
+}

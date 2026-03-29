@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,7 +19,11 @@ import (
 	"github.com/artsadert/lesson_23/internal/infrastructure/db/postgres/user"
 	movie_interface "github.com/artsadert/lesson_23/internal/interface/api/rest/v1/movie"
 	user_interface "github.com/artsadert/lesson_23/internal/interface/api/rest/v1/user"
+	grpc_proto "github.com/artsadert/lesson_23/internal/interface/grpc/proto"
+	grpc_middleware "github.com/artsadert/lesson_23/internal/interface/grpc/v1/interceptors"
+	grpc_auth "github.com/artsadert/lesson_23/internal/interface/grpc/v1/server"
 	"github.com/go-chi/chi"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -51,6 +57,30 @@ func main() {
 		Addr:    ":8080",
 		Handler: root_router,
 	}
+	go func() {
+		s := grpc.NewServer(
+			grpc.ConnectionTimeout(5*time.Second),
+			grpc.UnaryInterceptor(grpc_middleware.UnaryAuthInterceptor(config)),
+			grpc.StreamInterceptor(grpc_middleware.StreamAuthInterceptor(config)),
+		)
+
+		// Register AuthService
+		authServer := grpc_auth.NewAuthServer(config, user_service)
+		grpc_proto.RegisterAuthServiceServer(s, authServer)
+
+		// Register other services here...
+
+		// Start listening
+		lis, err := net.Listen("tcp", ":50051")
+		if err != nil {
+			log.Fatalf("failed to listen: %v", err)
+		}
+		log.Println("gRPC server listening on :50051")
+		if err := s.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
+
 	go func() {
 		fmt.Println("starting on http://localhost:8080")
 
